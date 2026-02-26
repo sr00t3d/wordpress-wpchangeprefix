@@ -5,6 +5,8 @@ Readme: [Português](README-ptbr.md)
 ![License](https://img.shields.io/github/license/sr00t3d/wpchangeprefix)
 ![Shell Script](https://img.shields.io/badge/shell-script-green)
 
+<img width="700" alt="BindFilter" src="wp-change-prefix-cover.webp" />
+
 A powerful, safe, and automated Bash script to change the WordPress database table prefix. This tool handles the entire process: backing up the database, renaming tables, updating internal references (usermeta/options), and modifying `wp-config.php`.
 
 ## 🚀 Features
