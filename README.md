@@ -1,6 +1,6 @@
 # WordPress Database Prefix Changer
 
-Readme: [Português](README-ptbr.md)
+Readme: [BR](README-ptbr.md)
 
 ![License](https://img.shields.io/github/license/sr00t3d/wpchangeprefix)
 ![Shell Script](https://img.shields.io/badge/shell-script-green)
@@ -56,18 +56,107 @@ chmod +x wp-change-prefix.sh
 ## Command Line Options
 
 ```bash
-Flag             Description
--s, --skip       Skip Backup: Runs the script without creating a database dump (Not recommended).
--n, --noversion  No Version Check: Skips the remote check for script updates.
--h, --help       Displays the help menu.
+./wp-change-prefix.sh
 ```
+
+`-s`, `--skip` Skip Backup: Executes the script without creating a database dump (Not recommended).
+
+`-n`, `--noversion` No Version Check: Ignores remote checking for script updates.
+
+`-h`, `--help` Displays the help menu.
 
 **Example**
 
-# Run without checking for updates and skipping backup
+Table prefixes before modification:
 
 ```bash
-./wp-change-prefix.sh --skip --noversion
+mysql -u sql_wpdomain_com -p sql_wpdomain_com -e 'show tables;'
+
+Enter password:
++------------------------------+
+| Tables_in_sql_wpdomain_com |
+
++------------------------------+
+| wp_8b7fba_commentmeta |
+
+| wp_8b7fba_comments |
+
+| wp_8b7fba_links |
+| wp_8b7fba_options |
+| wp_8b7fba_postmeta |
+| wp_8b7fba_posts |
+| wp_8b7fba_term_relationships |
+| wp_8b7fba_term_taxonomy |
+| wp_8b7fba_termmeta |
+| wp_8b7fba_terms |
+| wp_8b7fba_usermeta |
+| wp_8b7fba_users |
++------------------------------+
+```
+
+Execution:
+
+```bash
+[root@evy wpdomain.com]# ./wpchange.sh
+[!] Starting...
+[+] Database credentials found:
+------------------------
+| DB: sql_wpdomain_com
+| User: sql_wpdomain_com
+| Host: localhost
+------------------------
+[+] Current prefix detected: 'wp_8b7fba_'
+[!] Dumping database...
+[+] Backup created at: /www/wwwroot/wpdomain.com/wp_8b7fba_db_backup_20260228003919.sql
+
+Enter NEW prefix (e.g., 'newwp'): wpnew
+
+[!] WARNING: This will change the prefix from 'wp_8b7fba_' to 'wpnew_'
+Do you want to continue? (y/n): y
+[+] Changing database tables...
+[+] Renaming table: wp_8b7fba_commentmeta -> wpnew_commentmeta
+[+] Renaming table: wp_8b7fba_comments -> wpnew_comments
+[+] Renaming table: wp_8b7fba_links -> wpnew_links
+[+] Renaming table: wp_8b7fba_options -> wpnew_options
+[+] Renaming table: wp_8b7fba_postmeta -> wpnew_postmeta
+[+] Renaming table: wp_8b7fba_posts -> wpnew_posts
+[+] Renaming table: wp_8b7fba_term_relationships -> wpnew_term_relationships
+[+] Renaming table: wp_8b7fba_term_taxonomy -> wpnew_term_taxonomy
+[+] Renaming table: wp_8b7fba_termmeta -> wpnew_termmeta
+[+] Renaming table: wp_8b7fba_terms -> wpnew_terms
+[+] Renaming table: wp_8b7fba_usermeta -> wpnew_usermeta
+[+] Renaming table: wp_8b7fba_users -> wpnew_users
+[+] Updating internal rows (usermeta/options)...
+[+] Updating $table_prefix variable in wp-config.php...
+[+] Updating $table_prefix variable in wp-config.php...
+--------------------------------------------------------
+[+] Process completed successfully!
+[+] New Prefix: wpnew_
+[+] Database: sql_wpdomain_com
+--------------------------------------------------------
+```
+
+Prefix after execution:
+
+```bash
+mysql -u sql_wpdomain_com -p sql_wpdomain_com -e 'show tables;'
+Enter password:
++----------------------------+
+| Tables_in_sql_wpdomain_com |
++----------------------------+
+| wpnew_commentmeta |
+| wpnew_comments |
+| wpnew_links |
+| wpnew_options |
+| wpnew_postmeta |
+| wpnew_posts |
+| wpnew_term_relationships |
+| wpnew_term_taxonomy |
+| wpnew_termmeta |
+| wpnew_terms |
+| wpnew_usermeta |
+| wpnew_users |
++----------------------------+
 ```
 
 🛠️ How it Works
@@ -83,7 +172,7 @@ Flag             Description
 ## ⚠️ Legal Notice
 
 > [!WARNING]
-> This software is provided "as is". Always make sure to test first in a development environment. The author is not responsible for any misuse, legal consequences, or data impact caused by this tool.
+> This software is provided "as is". Always ensure you have explicit permission before running. The author is not responsible for any misuse, legal consequences, or data impact caused by this tool.
 
 ## 📚 Detailed Tutorial
 

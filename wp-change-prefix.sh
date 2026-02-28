@@ -1,21 +1,20 @@
-#!/bin/bash
-################################################################################
-#                                                                              #
-#   PROJECT: WordPress Database Prefix Changer                                 #
-#   VERSION: 1.2.0                                                             #
-#                                                                              #
-#   AUTHOR:  Percio Andrade                                                    #
-#   CONTACT: percio@zendev.com.br | contato@perciocastelo.com.br               #
-#   WEB:     https://perciocastelo.com.br                                      #
-#                                                                              #
-#   INFO:                                                                      #
-#   Safely change WP database prefix, update tables and wp-config.php.         #
-#                                                                              #
-################################################################################
+#!/usr/bin/env bash
+# ╔═══════════════════════════════════════════════════════════════════════════╗
+# ║                                                                           ║
+# ║   WordPress Change Prefix v1.1.0                                          ║
+# ║                                                                           ║
+# ╠═══════════════════════════════════════════════════════════════════════════╣
+# ║   Autor:   Percio Castelo                                                 ║
+# ║   Contato: percio@evolya.com.br | contato@perciocastelo.com.br            ║
+# ║   Web:     https://perciocastelo.com.br                                   ║
+# ║                                                                           ║
+# ║   Função:  Safely change WP database prefix, update                       ║
+# ║            tables and wp-config.php.                                      ║
+# ╚═══════════════════════════════════════════════════════════════════════════╝
 
 # --- CONFIGURATION ---
-VERSION='1.2.0'
-UPDATE_URL='https://raw.githubusercontent.com/percioandrade/wpchangeprefix/refs/heads/main/wp-change-prefix.sh'
+VERSION='1.1.0'
+UPDATE_URL='https://raw.githubusercontent.com/percioandrade/wpchangeprefix/refs/heads/main/wpchange_prefix.sh'
 CONFIG_FILE="wp-config.php"
 # ---------------------
 
@@ -40,8 +39,8 @@ if [[ "$SYSTEM_LANG" == "pt" ]]; then
     MSG_SKIP_BACKUP="[!] Opção --skip usada. Backup ignorado."
     MSG_DUMPING="[!] Gerando dump do banco..."
     MSG_DUMP_OK="[+] Backup criado em:"
-    MSG_INPUT_NEW="Digite o NOVO prefixo (apenas letras/números, ex: 'wpnew'): "
-    MSG_ERR_INVALID="[!] Prefixo inválido. Use apenas letras e números (sem underline no final, eu adiciono)."
+    MSG_INPUT_NEW="Digite o NOVO prefixo (ex: 'newwp'): "
+    MSG_ERR_INVALID="[!] Prefixo inválido. Use apenas letras e números."
     MSG_WARN_CHANGE="[!] ATENÇÃO: Isso alterará o prefixo de"
     MSG_TO="para"
     MSG_CONFIRM="Deseja continuar? (y/n): "
@@ -70,8 +69,8 @@ else
     MSG_SKIP_BACKUP="[!] Skip option used. No backup generated."
     MSG_DUMPING="[!] Dumping database..."
     MSG_DUMP_OK="[+] Backup created at:"
-    MSG_INPUT_NEW="Enter NEW prefix (alphanumeric only, e.g., 'wpnew'): "
-    MSG_ERR_INVALID="[!] Invalid prefix. Use only letters/numbers (no trailing underscore, I add it)."
+    MSG_INPUT_NEW="Enter NEW prefix (e.g., 'newwp'): "
+    MSG_ERR_INVALID="[!] Invalid prefix. Use only letters and numbers."
     MSG_WARN_CHANGE="[!] WARNING: This will change the prefix from"
     MSG_TO="to"
     MSG_CONFIRM="Do you want to continue? (y/n): "
@@ -95,37 +94,29 @@ display_help() {
 EOF
 }
 
-# Check for help
 if [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
     display_help
     exit 0
 fi
 
-# Version Check
-if [[ " $* " == *" -n "* || " $* " == *" --noversion "* ]]; then
-    : # Skip
-else
+# Version Check logic
+if [[ " $* " != *" -n "* && " $* " != *" --noversion "* ]]; then
     if command -v curl &> /dev/null; then
         V_REMOTE=$(curl -s "$UPDATE_URL" | grep -m1 "VERSION=" | cut -d "'" -f2)
-    elif command -v wget &> /dev/null; then
-        V_REMOTE=$(wget -qO- "$UPDATE_URL" | grep -m1 "VERSION=" | cut -d "'" -f2)
-    else
-        V_REMOTE="$VERSION"
+        if [[ -z "$V_REMOTE" ]]; then V_REMOTE=$(curl -s "$UPDATE_URL" | grep -m1 "V=" | cut -d "'" -f2); fi
     fi
-    # Simple check logic (omitted full block for brevity, similar to previous scripts)
+    if [[ -n "$V_REMOTE" && "$V_REMOTE" != "$VERSION" ]]; then
+        echo "[!] Update available: $V_REMOTE (Current: $VERSION)"
+    fi
 fi
 
 echo "$MSG_START"
 
-# Check wp-config
 if [[ ! -f "${CONFIG_FILE}" ]]; then
     echo "$MSG_ERR_FILE"
     exit 1
-else
-    echo "$MSG_FILE_FOUND"
 fi
 
-# Function to extract values
 get_db_value() {
     local key="$1"
     grep -E "define\s*\(\s*['\"]$key['\"]\s*," "$CONFIG_FILE" | awk -F "['\"]" '{print $4}'
@@ -143,47 +134,97 @@ fi
 
 echo "$MSG_DB_FOUND"
 echo "------------------------"
-echo "| Database: ${DB_NAME}"
-echo "| User:     ${DB_USER}"
-echo "| Host:     ${DB_HOST}"
+echo "| DB:   ${DB_NAME}"
+echo "| User: ${DB_USER}"
+echo "| Host: ${DB_HOST}"
 echo "------------------------"
 
-echo "$MSG_CHECK_PREFIX"
-echo "$MSG_CONN_WAIT"
-
-# Detect Current Prefix
-# Finds a table ending in _usermeta to guess prefix safely
-DETECTED_TABLE=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "SELECT table_name FROM information_schema.tables WHERE table_schema = '${DB_NAME}' AND table_name LIKE '%_usermeta' LIMIT 1;" 2>/dev/null)
-MYSQL_EXIT_CODE=$?
-
-if [[ $MYSQL_EXIT_CODE -ne 0 ]]; then
+# Detect Prefix
+DETECTED_TABLE=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "SHOW TABLES LIKE '%options';" 2>/dev/null | head -n 1)
+if [[ $? -ne 0 || -z "$DETECTED_TABLE" ]]; then
     echo "$MSG_ERR_CONN"
     exit 1
 fi
 
-if [[ -z "$DETECTED_TABLE" ]]; then
-    # Fallback to standard check if no usermeta found (rare)
-    DETECTED_TABLE=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "SELECT table_name FROM information_schema.tables WHERE table_schema = '${DB_NAME}' AND table_name LIKE '%_options' LIMIT 1;" 2>/dev/null)
-fi
+CURRENT_PREFIX="${DETECTED_TABLE%options}"
+echo "$MSG_CUR_PREFIX '$CURRENT_PREFIX'"
 
-if [[ -z "$DETECTED_TABLE" ]]; then
-    echo "$MSG_ERR_PREFIX"
-    exit 1
-fi
-
-# Extract prefix (remove 'usermeta' or 'options' from end)
-if [[ "$DETECTED_TABLE" == *"_usermeta" ]]; then
-    CURRENT_PREFIX="${DETECTED_TABLE%usermeta}"
-else
-    CURRENT_PREFIX="${DETECTED_TABLE%options}"
-fi
-
-echo "$MSG_CUR_PREFIX '${CURRENT_PREFIX}'"
-
-# Backup
+# Backup Logic
 if [[ " $* " == *" -s "* || " $* " == *" --skip "* ]]; then
     echo "$MSG_SKIP_BACKUP"
 else
     DUMP_FILE="${CURRENT_PREFIX}db_backup_$(date +%Y%m%d%H%M%S).sql"
     echo "$MSG_DUMPING"
-    mysqldump -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" > "${DUMP_FILE}" 2>/dev/null
+    mysqldump -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" > "${DUMP_FILE}"
+    echo "$MSG_DUMP_OK $(pwd)/${DUMP_FILE}"
+fi
+
+# New Prefix Input
+read -p "$MSG_INPUT_NEW" RAW_NEW_PREFIX
+if [[ -z "$RAW_NEW_PREFIX" ]]; then
+    echo "$MSG_EMPTY_NEW"
+    exit 1
+fi
+
+# Ensure it ends with underscore
+NEW_PREFIX="${RAW_NEW_PREFIX%_}_"
+
+echo -e "\n$MSG_WARN_CHANGE '$CURRENT_PREFIX' $MSG_TO '$NEW_PREFIX'"
+read -p "$MSG_CONFIRM" CONFIRM
+if [[ "${CONFIRM,,}" != "y" ]]; then
+    echo "$MSG_EXIT"
+    exit 0
+fi
+
+# Execute Database Changes
+echo "$MSG_CHANGING"
+TABLES=$(mysql -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -N -B -e "SHOW TABLES LIKE '${CURRENT_PREFIX}%';")
+
+for table in $TABLES; do
+    suffix="${table#$CURRENT_PREFIX}"
+    new_table_name="${NEW_PREFIX}${suffix}"
+    echo "$MSG_RENAMING $table -> $new_table_name"
+    mysql -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "RENAME TABLE \`$table\` TO \`$new_table_name\`;"
+done
+
+echo "$MSG_UPDATING_ROWS"
+mysql -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "
+    UPDATE \`${NEW_PREFIX}options\` SET option_name = '${NEW_PREFIX}user_roles' WHERE option_name = '${CURRENT_PREFIX}user_roles';
+    UPDATE \`${NEW_PREFIX}usermeta\` SET meta_key = '${NEW_PREFIX}capabilities' WHERE meta_key = '${CURRENT_PREFIX}capabilities';
+    UPDATE \`${NEW_PREFIX}usermeta\` SET meta_key = '${NEW_PREFIX}user_level' WHERE meta_key = '${CURRENT_PREFIX}user_level';
+    UPDATE \`${NEW_PREFIX}usermeta\` SET meta_key = '${NEW_PREFIX}autosave_draft_ids' WHERE meta_key = '${CURRENT_PREFIX}autosave_draft_ids';
+"
+
+# Update wp-config.php
+echo "$MSG_UPDATE_CONFIG"
+sed -i "s/\$table_prefix = '[^']*';/\$table_prefix = '${NEW_PREFIX}';/g" "$CONFIG_FILE"
+sed -i "s/\$table_prefix = \"[^\"]*\";/\$table_prefix = \"${NEW_PREFIX}\";/g" "$CONFIG_FILE"
+
+# Final check on wp-config.php to confirm the change
+CONFIRM_CONFIG=$(grep "table_prefix" "$CONFIG_FILE" | awk -F "['\"]" '{print $2}')
+
+if [[ "$CONFIRM_CONFIG" == "$NEW_PREFIX" ]]; then
+    echo "$MSG_UPDATE_CONFIG"
+else
+    # If sed fails for some permission reason or unexpected syntax
+    echo "[!] Erro ao atualizar wp-config.php automaticamente."
+    echo "[!] Por favor, altere manualmente a linha \$table_prefix para: '$NEW_PREFIX'"
+fi
+
+echo "--------------------------------------------------------"
+echo "$MSG_DONE"
+echo "[+] Novo Prefixo: $NEW_PREFIX"
+echo "[+] Database: $DB_NAME"
+echo "--------------------------------------------------------"
+
+# Optional: Cache clearing suggestion if WP-CLI is available
+if command -v wp &> /dev/null; then
+    echo "[?] WP-CLI detectado. Deseja limpar o cache do site? (y/n)"
+    read -r CLEAN_CACHE
+    if [[ "${CLEAN_CACHE,,}" == "y" ]]; then
+        wp cache flush
+        echo "[+] Cache limpo!"
+    fi
+fi
+
+exit 0
