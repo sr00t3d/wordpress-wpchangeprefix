@@ -2,14 +2,13 @@
 
 Readme: [EN](README.md)
 
-![License](https://img.shields.io/github/license/sr00t3d/wpchangeprefix)
-![Shell Script](https://img.shields.io/badge/shell-script-green)
+![License](https://img.shields.io/github/license/sr00t3d/wordpress-wpchangeprefix) ![Shell Script](https://img.shields.io/badge/shell-script-green)
 
 <img width="700" alt="BindFilter" src="wp-change-prefix-cover.webp" />
 
 Um script Bash poderoso, seguro e automatizado para alterar o prefixo das tabelas do banco de dados do WordPress. Esta ferramenta gerencia todo o processo: criação de backup do banco de dados, renomeação das tabelas, atualização de referências internas (usermeta/options) e modificação do `wp-config.php`.
 
-## 🚀 Recursos
+## Recursos
 
 - **Descoberta Automática**: Detecta automaticamente as credenciais do banco de dados e o prefixo atual a partir do wp-config.php.
 - **Segurança em Primeiro Lugar**: Cria um backup completo do banco de dados (`.sql dump`) antes de aplicar qualquer alteração.
@@ -17,7 +16,7 @@ Um script Bash poderoso, seguro e automatizado para alterar o prefixo das tabela
 - **Atualização de Configuração**: Atualiza automaticamente a variável `$table_prefix` no seu arquivo `wp-config.php`.
 - **Autoatualização**: Verifica remotamente a versão mais recente do script.
 
-## 📋 Pré-requisitos
+## Pré-requisitos
 
 Para executar este script, seu ambiente deve ter:
 - SO Linux/Unix (Ubuntu, Debian, CentOS, etc.)
@@ -27,26 +26,35 @@ Para executar este script, seu ambiente deve ter:
 - `curl` ou `wget` (para verificação de atualizações)
 - Acesso `Root/Sudo` é recomendado se as permissões de arquivo forem restritas, embora não seja estritamente necessário se o usuário for proprietário dos arquivos.
 
-## 📥 Instalação
+## Instalação
 
-Você pode baixar o script diretamente para o diretório raiz do seu WordPress:
+### Modo hospedado
+
+1. **Baixe o arquivo para seu servidor:**
 
 ```bash
-wget https://raw.githubusercontent.com/percioandrade/wpchangeprefix/refs/heads/main/wp-change-prefix.sh
+curl -O https://raw.githubusercontent.com/percioandrade/wpchangeprefix/refs/heads/main/wp-change-prefix.sh
+```
+
+2. **Adicione permissão de execução:**
+
+```bash
 chmod +x wp-change-prefix.sh
 ```
 
-## ⚙️ Uso
-
-**1. Navegue até o diretório raiz do seu WordPress (onde o wp-config.php está localizado).**
-
-**2. Execute o script:**
+3. **Execute o script:**
 
 ```bash
 ./wp-change-prefix.sh
 ```
 
-**3. Siga os prompts interativos:**
+### Modo direto
+
+```bash
+bash <(curl -fsSL 'https://raw.githubusercontent.com/percioandrade/wpchangeprefix/refs/heads/main/wp-change-prefix.sh')
+```
+
+**Siga os prompts interativos:**
 
 - O script irá verificar as credenciais.
 - Ele mostrará o prefixo atual detectado.
@@ -154,7 +162,7 @@ Enter password:
 +----------------------------+
 ```
 
-🛠️ Como Funciona
+## Como Funciona
 
 - **Validação**: Verifica se o `wp-config.php` existe e analisa as credenciais do banco de dados.
 - **Conexão**: Testa a conexão com o servidor MySQL.
@@ -164,17 +172,17 @@ Enter password:
 - **Correção de Dados**: Executa atualizações SQL para corrigir referências de prefixo dentro de `usermeta` (chaves como `wp_capabilities`) e options (chaves `like wp_user_roles`).
 - **Finalização**: Atualiza a variável PHP no arquivo de configuração.
 
-## ⚠️ Aviso Legal
+## Aviso Legal
 
 > [!WARNING]
 > Este software é fornecido "tal como está". Certifique-se sempre de ter permissão explícita antes de executar. O autor não se responsabiliza por qualquer uso indevido, consequências legais ou impacto nos dados causados ​​por esta ferramenta.
 
-## 📚 Detailed Tutorial
+## Detailed Tutorial
 
 Para um guia completo, passo a passo, confira meu artigo completo:
 
 👉 [**Mudar prefixo do banco de dados WordPress**](https://perciocastelo.com.br/blog/change-wordpress-database-prefix.html)
 
-## Licença 📄
+## Licença
 
 Este projeto está licenciado sob a **GNU General Public License v3.0**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
