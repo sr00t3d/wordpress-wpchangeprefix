@@ -1,188 +1,187 @@
-# WP Change Prefix
+# WordPress Database Prefix Changer
 
 Readme: [EN](README.md)
 
-![License](https://img.shields.io/github/license/sr00t3d/wordpress-wpchangeprefix) ![Shell Script](https://img.shields.io/badge/shell-script-green)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.0.0-green.svg)](https://github.com/sr00t3d/wpchangeprefix/releases)
+[![Shell](https://img.shields.io/badge/bash-4.0+-blue.svg)](https://www.gnu.org/software/bash/)
 
-<img width="700" alt="BindFilter" src="wp-change-prefix-cover.webp" />
+<img width="700" src="wp-change-prefix-cover.webp" alt="WordPress Database Prefix Changer" />
 
-Um script Bash poderoso, seguro e automatizado para alterar o prefixo das tabelas do banco de dados do WordPress. Esta ferramenta gerencia todo o processo: criação de backup do banco de dados, renomeação das tabelas, atualização de referências internas (usermeta/options) e modificação do `wp-config.php`.
+**WordPress Database Prefix Changer v2.0.0** e um utilitario CLI em Bash para hardening de instalacoes WordPress que renomeia todas as tabelas MySQL/MariaDB do prefixo padrao `wp_` para um prefixo customizado ou aleatorio, atualiza referencias internas em `options` e `usermeta`, ajusta `$table_prefix` no `wp-config.php` e gera backups `chmod 600` automaticamente.
 
-## Recursos
+---
 
-- **Descoberta Automática**: Detecta automaticamente as credenciais do banco de dados e o prefixo atual a partir do wp-config.php.
-- **Segurança em Primeiro Lugar**: Cria um backup completo do banco de dados (`.sql dump`) antes de aplicar qualquer alteração.
-- **Limpeza Profunda**: Não apenas renomeia as tabelas, mas também atualiza linhas críticas nas tabelas `_usermeta` e `_options` para evitar problemas de permissão.
-- **Atualização de Configuração**: Atualiza automaticamente a variável `$table_prefix` no seu arquivo `wp-config.php`.
-- **Autoatualização**: Verifica remotamente a versão mais recente do script.
+## Funcionalidades
 
-## Pré-requisitos
+- **Zero Exposicao de Senha no `ps aux`**: autentica no `mysql` e `mysqldump` via arquivo temporario `--defaults-extra-file` (`chmod 600`, com suporte seguro a senhas contendo `#` ou `;`) removido automaticamente via `trap`
+- **Backups Automaticos (`chmod 600`)**: gera dump SQL com `--single-transaction` e copia `wp-config.php.bak.*` com timestamp antes de alterar qualquer tabela
+- **Patch Interno Completo**: atualiza `*_user_roles` em `options` e todas as chaves com prefixo (`*_capabilities`, `*_user_level`, `*_user-settings`, etc.) em `usermeta`
+- **Gerador de Prefixo Aleatorio (`--random`)**: cria prefixos criptograficamente aleatorios (`wp_<6hex>_`) a partir de `/dev/urandom`
+- **Simulacao Dry-Run (`--dry-run`)**: lista todas as tabelas a renomear sem alterar banco nem `wp-config.php`
+- **Relatorios Multi-Formato (`-o table|json|csv`)**: tabela ASCII, JSON para pipelines ou CSV para trilhas de auditoria
+- **Validacao Estrita de Prefixo**: rejeita caracteres invalidos ou prefixo identico ao atual antes de executar SQL
 
-Para executar este script, seu ambiente deve ter:
-- SO Linux/Unix (Ubuntu, Debian, CentOS, etc.)
-- `bash` (shell)
-- `mysql` e `mysqldump` (ferramentas cliente)
-- `grep`, `awk`
-- `curl` ou `wget` (para verificação de atualizações)
-- Acesso `Root/Sudo` é recomendado se as permissões de arquivo forem restritas, embora não seja estritamente necessário se o usuário for proprietário dos arquivos.
+---
 
-## Instalação
+## Requisitos
 
-### Modo hospedado
+- Linux com Bash 4+
+- Clientes `mysql` e `mysqldump`
+- Permissao de leitura/escrita no `wp-config.php` e privilegios `ALTER`/`UPDATE` no banco WordPress
 
-1. **Baixe o arquivo para seu servidor:**
+---
 
-```bash
-curl -O https://raw.githubusercontent.com/percioandrade/wpchangeprefix/refs/heads/main/wp-change-prefix.sh
-```
-
-2. **Adicione permissão de execução:**
+## Instalacao
 
 ```bash
+curl -fsSLO https://raw.githubusercontent.com/sr00t3d/wpchangeprefix/main/wp-change-prefix.sh
 chmod +x wp-change-prefix.sh
 ```
 
-3. **Execute o script:**
+---
+
+## Uso
 
 ```bash
-./wp-change-prefix.sh
+./wp-change-prefix.sh [OPCOES]
+
+Opcoes:
+  -c, --config PATH       Caminho para o wp-config.php (padrao: ./wp-config.php)
+  -p, --new-prefix STR    Novo prefixo de tabelas (alfanumerico/underscore, ex: wp_sec9_)
+  --random                Gera prefixo aleatorio automaticamente (formato: wp_<6hex>_)
+  -b, --backup-dir DIR    Diretorio para salvar dump SQL e backup do wp-config.php
+  -s, --skip-backup       Ignora criacao de dump SQL e backup do wp-config.php
+  -y, --yes               Pula confirmacao interativa
+  --dry-run               Simula renomeio sem alterar banco ou arquivos
+  -o, --output FORMATO    Formato de saida: table (padrao), json, csv
+  -q, --quiet             Suprime saida padrao (mantem erros em stderr)
+  --no-color              Desativa cores ANSI
+  -V, --version           Exibe a versao e encerra
+  -h, --help              Exibe a ajuda e encerra
 ```
 
-### Modo direto
+### Exemplos
 
 ```bash
-bash <(curl -fsSL 'https://raw.githubusercontent.com/percioandrade/wpchangeprefix/refs/heads/main/wp-change-prefix.sh')
+# Simular renomeio de tabelas sem aplicar alteracoes
+./wp-change-prefix.sh -c /var/www/html/wp-config.php -p wp_sec9_ --dry-run
+
+# Renomear tabelas com backup automatico de SQL e wp-config.php
+./wp-change-prefix.sh -c /var/www/html/wp-config.php -p wp_sec9_ --yes
+
+# Gerar prefixo aleatorio com saida JSON
+./wp-change-prefix.sh -c /var/www/html/wp-config.php --random --yes -b /root/wp-backups -o json
+
+# Execucao nao-interativa com saida CSV de auditoria
+./wp-change-prefix.sh -c /var/www/html/wp-config.php -p wp_prod_ --yes -o csv
 ```
 
-**Siga os prompts interativos:**
+---
 
-- O script irá verificar as credenciais.
-- Ele mostrará o prefixo atual detectado.
-- Ele pedirá o NOVO prefixo (apenas alfanumérico).
-- Confirme a operação.
+## Exemplo de Saida Real
 
-## Opções de Linha de Comando
+Capturado em servidor AlmaLinux 8.10 com cPanel/WHM e MariaDB:
 
-```bash
-./wp-change-prefix.sh
+### Saida em tabela (padrao)
+
+```text
+$ ./wp-change-prefix.sh -c /tmp/wp-prefix-e2e/wp-config.php -p wp_sec9_ --yes --no-color
+
+WordPress Database Prefix Changer v2.0.0
+Config     : /tmp/wp-prefix-e2e/wp-config.php
+Database   : wp_prefix_e2e (localhost)
+Prefix     : wp_ -> wp_sec9_
+SQL Backup : /tmp/wp-prefix-e2e/wp_prefix_e2e_wp_backup_20261120_054308.sql
+Cfg Backup : /tmp/wp-prefix-e2e/wp-config.php.bak.20261120_054308
+Dry-Run    : no
+Status     : SUCCESS
+Timestamp  : 2026-11-20T05:43:08Z
+
++------------------------------+------------------------------+--------------+
+| Old Table                    | New Table                    | Status       |
++------------------------------+------------------------------+--------------+
+| wp_options                   | wp_sec9_options              | RENAMED      |
+| wp_postmeta                  | wp_sec9_postmeta             | RENAMED      |
+| wp_posts                     | wp_sec9_posts                | RENAMED      |
+| wp_usermeta                  | wp_sec9_usermeta             | RENAMED      |
+| wp_users                     | wp_sec9_users                | RENAMED      |
++------------------------------+------------------------------+--------------+
+Summary    : 5 tables | options patched: 1 | usermeta patched: 3 | wp-config updated: true
 ```
 
-`-s`, `--skip`       Pular Backup: Executa o script sem criar um dump do banco de dados (Não recomendado).
-`-n`, `--noversion`  Sem Verificação de Versão: Ignora a verificação remota de atualizações do script.
-`-h`, `--help`       Exibe o menu de ajuda.
+### Simulacao Dry-Run (`--dry-run`)
+
+```text
+$ ./wp-change-prefix.sh -c /tmp/wp-prefix-e2e/wp-config.php -p wp_sec9_ --dry-run --no-color
+
+WordPress Database Prefix Changer v2.0.0
+Config     : /tmp/wp-prefix-e2e/wp-config.php
+Database   : wp_prefix_e2e (localhost)
+Prefix     : wp_ -> wp_sec9_
+SQL Backup : none
+Cfg Backup : none
+Dry-Run    : yes
+Status     : DRY_RUN
+Timestamp  : 2026-11-20T05:43:08Z
+
++------------------------------+------------------------------+--------------+
+| Old Table                    | New Table                    | Status       |
++------------------------------+------------------------------+--------------+
+| wp_options                   | wp_sec9_options              | WOULD_RENAME |
+| wp_postmeta                  | wp_sec9_postmeta             | WOULD_RENAME |
+| wp_posts                     | wp_sec9_posts                | WOULD_RENAME |
+| wp_usermeta                  | wp_sec9_usermeta             | WOULD_RENAME |
+| wp_users                     | wp_sec9_users                | WOULD_RENAME |
++------------------------------+------------------------------+--------------+
+Summary    : 5 tables | options patched: 0 | usermeta patched: 0 | wp-config updated: false
 ```
 
-**Exemplo**
+### Saida JSON com prefixo aleatorio (`--random -o json`)
 
-Prefixo das tabelas antes da modificação:
-
-```bash
-mysql -u sql_wpdomain_com -p sql_wpdomain_com -e 'show tables;'
-Enter password: 
-+------------------------------+
-| Tables_in_sql_wpdomain_com   |
-+------------------------------+
-| wp_8b7fba_commentmeta        |
-| wp_8b7fba_comments           |
-| wp_8b7fba_links              |
-| wp_8b7fba_options            |
-| wp_8b7fba_postmeta           |
-| wp_8b7fba_posts              |
-| wp_8b7fba_term_relationships |
-| wp_8b7fba_term_taxonomy      |
-| wp_8b7fba_termmeta           |
-| wp_8b7fba_terms              |
-| wp_8b7fba_usermeta           |
-| wp_8b7fba_users              |
-+------------------------------+
+```json
+{
+  "version": "2.0.0",
+  "status": "SUCCESS",
+  "config_path": "/tmp/wp-prefix-e2e/wp-config.php",
+  "database": "wp_prefix_e2e",
+  "old_prefix": "wp_sec9_",
+  "new_prefix": "wp_aff74d_",
+  "tables_count": 5,
+  "options_rows_updated": 1,
+  "usermeta_rows_updated": 3,
+  "config_updated": true,
+  "sql_backup": "none",
+  "config_backup": "none",
+  "dry_run": false,
+  "timestamp": "2026-11-20T05:43:09Z",
+  "tables": [
+    {"old": "wp_sec9_options", "new": "wp_aff74d_options", "status": "RENAMED"},
+    {"old": "wp_sec9_postmeta", "new": "wp_aff74d_postmeta", "status": "RENAMED"},
+    {"old": "wp_sec9_posts", "new": "wp_aff74d_posts", "status": "RENAMED"},
+    {"old": "wp_sec9_usermeta", "new": "wp_aff74d_usermeta", "status": "RENAMED"},
+    {"old": "wp_sec9_users", "new": "wp_aff74d_users", "status": "RENAMED"}
+  ]
+}
 ```
 
-Execução:
+### Saida CSV (`-o csv`)
 
-```bash
-[root@evy wpdomain.com]# ./wpchange.sh 
-[!] Starting...
-[+] Database credentials found:
-------------------------
-| DB:   sql_wpdomain_com
-| User: sql_wpdomain_com
-| Host: localhost
-------------------------
-[+] Current prefix detected: 'wp_8b7fba_'
-[!] Dumping database...
-[+] Backup created at: /www/wwwroot/wpdomain.com/wp_8b7fba_db_backup_20260228003919.sql
-
-Enter NEW prefix (e.g., 'newwp'): wpnew
-
-[!] WARNING: This will change the prefix from 'wp_8b7fba_' to 'wpnew_'
-Do you want to continue? (y/n): y
-[+] Changing database tables...
-[+] Renaming table: wp_8b7fba_commentmeta -> wpnew_commentmeta
-[+] Renaming table: wp_8b7fba_comments -> wpnew_comments
-[+] Renaming table: wp_8b7fba_links -> wpnew_links
-[+] Renaming table: wp_8b7fba_options -> wpnew_options
-[+] Renaming table: wp_8b7fba_postmeta -> wpnew_postmeta
-[+] Renaming table: wp_8b7fba_posts -> wpnew_posts
-[+] Renaming table: wp_8b7fba_term_relationships -> wpnew_term_relationships
-[+] Renaming table: wp_8b7fba_term_taxonomy -> wpnew_term_taxonomy
-[+] Renaming table: wp_8b7fba_termmeta -> wpnew_termmeta
-[+] Renaming table: wp_8b7fba_terms -> wpnew_terms
-[+] Renaming table: wp_8b7fba_usermeta -> wpnew_usermeta
-[+] Renaming table: wp_8b7fba_users -> wpnew_users
-[+] Updating internal rows (usermeta/options)...
-[+] Updating $table_prefix variable in wp-config.php...
-[+] Updating $table_prefix variable in wp-config.php...
---------------------------------------------------------
-[+] Process completed successfully!
-[+] Novo Prefixo: wpnew_
-[+] Database: sql_wpdomain_com
---------------------------------------------------------
+```csv
+timestamp,database,old_prefix,new_prefix,dry_run,old_table,new_table,status
+2026-11-20T05:43:09Z,"wp_prefix_e2e","wp_aff74d_","wp_prod_",false,"wp_aff74d_options","wp_prod_options",RENAMED
+2026-11-20T05:43:09Z,"wp_prefix_e2e","wp_aff74d_","wp_prod_",false,"wp_aff74d_postmeta","wp_prod_postmeta",RENAMED
+2026-11-20T05:43:09Z,"wp_prefix_e2e","wp_aff74d_","wp_prod_",false,"wp_aff74d_posts","wp_prod_posts",RENAMED
+2026-11-20T05:43:09Z,"wp_prefix_e2e","wp_aff74d_","wp_prod_",false,"wp_aff74d_usermeta","wp_prod_usermeta",RENAMED
+2026-11-20T05:43:09Z,"wp_prefix_e2e","wp_aff74d_","wp_prod_",false,"wp_aff74d_users","wp_prod_users",RENAMED
 ```
 
-Prefixo depois da execução:
+---
 
-```bash
-mysql -u sql_wpdomain_com -p sql_wpdomain_com -e 'show tables;'
-Enter password: 
-+----------------------------+
-| Tables_in_sql_wpdomain_com |
-+----------------------------+
-| wpnew_commentmeta          |
-| wpnew_comments             |
-| wpnew_links                |
-| wpnew_options              |
-| wpnew_postmeta             |
-| wpnew_posts                |
-| wpnew_term_relationships   |
-| wpnew_term_taxonomy        |
-| wpnew_termmeta             |
-| wpnew_terms                |
-| wpnew_usermeta             |
-| wpnew_users                |
-+----------------------------+
-```
+## Licenca
 
-## Como Funciona
+Apache-2.0. Consulte [LICENSE](LICENSE) para detalhes.
 
-- **Validação**: Verifica se o `wp-config.php` existe e analisa as credenciais do banco de dados.
-- **Conexão**: Testa a conexão com o servidor MySQL.
-- **Detecção**: Examina `information_schema` para encontrar o prefixo ativo (procurando por `_usermeta` ou `_options`).
-- **Backup**: Executa `mysqldump` para salvar o estado atual.
-- **Renomeação**: Percorre todas as tabelas que correspondem ao prefixo antigo e as renomeia para o novo prefixo.
-- **Correção de Dados**: Executa atualizações SQL para corrigir referências de prefixo dentro de `usermeta` (chaves como `wp_capabilities`) e options (chaves `like wp_user_roles`).
-- **Finalização**: Atualiza a variável PHP no arquivo de configuração.
+## Autor
 
-## Aviso Legal
-
-> [!WARNING]
-> Este software é fornecido "tal como está". Certifique-se sempre de ter permissão explícita antes de executar. O autor não se responsabiliza por qualquer uso indevido, consequências legais ou impacto nos dados causados ​​por esta ferramenta.
-
-## Detailed Tutorial
-
-Para um guia completo, passo a passo, confira meu artigo completo:
-
-👉 [**Mudar prefixo do banco de dados WordPress**](https://perciocastelo.com.br/blog/change-wordpress-database-prefix.html)
-
-## Licença
-
-Este projeto está licenciado sob a **GNU General Public License v3.0**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+[Percio Castelo](https://perciocastelo.com.br)
